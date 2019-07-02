@@ -1,7 +1,7 @@
 # AzureDataLakeGen2-SDK
 Simple (Unofficial) Azure DataLake Gen 2 SDK implementation
 
-# Azure Data Lake Gen2 -- REST API Examples in C#
+# Azure Data Lake Gen2
 This project provides a simple (Unofficial) sdk of Azure Data Lake Gen2, using the [REST APIs](https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/filesystem) for Azure Data Lake Gen2 to create file systems, folder paths and creating and uploading files. 
 
 ## Getting started
