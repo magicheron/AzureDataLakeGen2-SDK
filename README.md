@@ -1,6 +1,8 @@
 # AzureDataLakeGen2-SDK
 Simple (Unofficial) Azure DataLake Gen 2 SDK implementation
 
+![DataLakeLogo](https://s3-us-west-1.amazonaws.com/striim-prod-media/wp-content/uploads/2018/06/22135502/Azure-DataLake-icon.png)
+
 # Usage
 
 ```cs
