@@ -1,6 +1,45 @@
 # AzureDataLakeGen2-SDK
 Simple (Unofficial) Azure DataLake Gen 2 SDK implementation
 
+# Usage
+
+```cs
+  //Get your AAD Tenant ID, App ID and App Secret to use to aquire token from the app you set up above
+  var applicationId = ConfigurationManager.AppSettings["applicationId"];
+  var secretKey = ConfigurationManager.AppSettings["secretKey"];
+  var tenantId = ConfigurationManager.AppSettings["tenantId"];
+  var storageAccountName = "testdatalakegentwo";
+  var filesystem = "myfilesystem";
+  var mypath = "My/Folder/Path";
+
+  var client = DLStorageManagementClient.CreateClient(applicationId, secretKey, tenantId, storageAccountName);
+
+  var isFileSystemCreated = await client.CreateFilesystemAsync(filesystem);
+
+  var isDirectoryCreated = await client.CreateDirectoryAsync(filesystem, mypath);
+
+  string tmpFile = Path.GetTempFileName();
+  string fileName = HttpUtility.UrlEncode(Path.GetFileName(tmpFile));
+  File.WriteAllText(tmpFile, $"this is sample file content for {tmpFile}");
+
+  var isFileCreated = await client.CreateFileAsync(filesystem, mypath, fileName, new FileStream(tmpFile, FileMode.Open, FileAccess.Read));
+
+  var stream = new MemoryStream();
+
+  var isFileDownloaded = await client.DownloadFileAsync(filesystem, $"{mypath}/{fileName}", stream);
+
+  if (isFileDownloaded.IsSuccessStatusCode)
+  {
+      var contentString = UTF8Encoding.UTF8.GetString(stream.ToArray());
+
+      Console.WriteLine(contentString);
+  }
+
+  var isFileDeleted = await client.DeleteFileOrDirectoryAsync(filesystem, mypath, true);
+
+  var isFileSystemDeleted = await client.DeleteFilesystemAsync(filesystem);
+```
+
 # Azure Data Lake Gen2
 This project provides a simple (Unofficial) sdk of Azure Data Lake Gen2, using the [REST APIs](https://docs.microsoft.com/en-us/rest/api/storageservices/datalakestoragegen2/filesystem) for Azure Data Lake Gen2 to create file systems, folder paths and creating and uploading files. 
 
