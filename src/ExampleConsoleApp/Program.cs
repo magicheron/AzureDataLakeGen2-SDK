@@ -32,6 +32,9 @@ namespace ExampleConsoleApp
 
             var isFileCreated = await client.CreateFileAsync(filesystem, mypath, fileName, new FileStream(tmpFile, FileMode.Open, FileAccess.Read));
 
+            var isFileDeleted = await client.DeleteFileOrDirectoryAsync(filesystem, mypath, true);
+
+            var isFileSystemDeleted = await client.DeleteFilesystemAsync(filesystem);
         }
     }
 }

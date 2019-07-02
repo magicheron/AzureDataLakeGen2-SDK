@@ -32,36 +32,46 @@ namespace Microsoft.Azure.Management.Storage
         /// </summary>
         public string StorageAccountName { get; private set; }
 
+        public int Timeout { get; set; }
+
         private DLStorageManagementClient(ServiceClientCredentials credentials, params DelegatingHandler[] handlers) : base(handlers)
         {
             if (credentials == null)
             {
                 throw new System.ArgumentNullException("credentials");
             }
-            Credentials = credentials;
-            if (Credentials != null)
+            this.Credentials = credentials;
+            if (this.Credentials != null)
             {
-                Credentials.InitializeServiceClient(this);
+                this.Credentials.InitializeServiceClient(this);
             }
+            this.Timeout = 10000;
         }
 
         public async Task<OperationResult> CreateFilesystemAsync(string filesystem)
         {
-            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}?resource=filesystem";
+            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}?resource=filesystem&timeout={this.Timeout}";
             var response = await this.HttpClient.PutAsync(resourceUrl, null);
+            return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
+        }
+
+        public async Task<OperationResult> DeleteFilesystemAsync(string filesystem)
+        {
+            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}?resource=filesystem&timeout={this.Timeout}";
+            var response = await this.HttpClient.DeleteAsync(resourceUrl);
             return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
         }
 
         public async Task<OperationResult> CreateDirectoryAsync(string filesystem, string path)
         {
-            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}?resource=directory";
+            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}?resource=directory&timeout={this.Timeout}";
             var response = await this.HttpClient.PutAsync(resourceUrl, null);
             return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
         }
 
         public async Task<OperationResult> CreateEmptyFileAsync(string filesystem, string path, string fileName)
         {
-            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}/{fileName}?resource=file";
+            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}/{fileName}?resource=file&timeout={this.Timeout}";
             using (var tmpContent = new StreamContent(new MemoryStream()))
             {
                 HttpRequestMessage newFileMsg = new HttpRequestMessage(HttpMethod.Put, resourceUrl);
@@ -79,13 +89,13 @@ namespace Microsoft.Azure.Management.Storage
                 using (var streamContent = new StreamContent(stream))
                 {
                     //upload to the file buffer
-                    var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}/{fileName}?action=append&timeout=1000&position=0";
+                    var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}/{fileName}?action=append&timeout={this.Timeout}&position=0";
                     HttpRequestMessage msg = new HttpRequestMessage(new HttpMethod("PATCH"), resourceUrl);
                     msg.Content = streamContent;
                     var response = await this.HttpClient.SendAsync(msg);
 
                     //flush the buffer to commit the file
-                    var flushUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}/{fileName}?action=flush&position={msg.Content.Headers.ContentLength}";
+                    var flushUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}/{fileName}?action=flush&timeout={this.Timeout}&position={msg.Content.Headers.ContentLength}";
                     HttpRequestMessage flushMsg = new HttpRequestMessage(new HttpMethod("PATCH"), flushUrl);
                     response = await this.HttpClient.SendAsync(flushMsg);
 
@@ -96,6 +106,15 @@ namespace Microsoft.Azure.Management.Storage
             {
                 return operationResult;
             }
+        }
+
+        public async Task<OperationResult> DeleteFileOrDirectoryAsync(string filesystem, string path, bool recursive = false)
+        {
+            //delete the file
+            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}?recursive={recursive}&timeout={this.Timeout}";
+            HttpRequestMessage msg = new HttpRequestMessage(HttpMethod.Delete, resourceUrl);
+            var response = await this.HttpClient.SendAsync(msg);
+            return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
         }
 
     }
