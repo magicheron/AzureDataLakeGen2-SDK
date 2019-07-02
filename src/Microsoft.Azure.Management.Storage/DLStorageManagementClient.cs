@@ -112,8 +112,19 @@ namespace Microsoft.Azure.Management.Storage
         {
             //delete the file
             var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}?recursive={recursive}&timeout={this.Timeout}";
-            HttpRequestMessage msg = new HttpRequestMessage(HttpMethod.Delete, resourceUrl);
-            var response = await this.HttpClient.SendAsync(msg);
+            var response = await this.HttpClient.DeleteAsync(resourceUrl);
+            return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
+        }
+
+        public async Task<OperationResult> DownloadFileAsync(string filesystem, string path, Stream streamToSave)
+        {
+            //delete the file
+            var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}/{path}?timeout={this.Timeout}";
+            var response = await this.HttpClient.GetAsync(resourceUrl);
+
+            streamToSave.Seek(0, SeekOrigin.Begin);
+            await response.Content.CopyToAsync(streamToSave);
+
             return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
         }
 
