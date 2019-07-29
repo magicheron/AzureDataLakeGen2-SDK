@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net.Http;
-using System.Text;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,7 +32,11 @@ namespace Microsoft.Azure.Management.Storage
         /// </summary>
         public string StorageAccountName { get; private set; }
 
-        public int Timeout { get; set; }
+        public int Timeout
+        {
+            get { return (int)HttpClient.Timeout.TotalSeconds; }
+            set { HttpClient.Timeout = TimeSpan.FromSeconds(value); }
+        }
 
         private DLStorageManagementClient(ServiceClientCredentials credentials, params DelegatingHandler[] handlers) : base(handlers)
         {
@@ -48,6 +52,41 @@ namespace Microsoft.Azure.Management.Storage
             this.Timeout = 10000;
         }
 
+        public async Task<PayloadOperationResult<List<Filesystem>>> ListFilesystemsAsync()
+        {
+            string continuation = null;
+            HttpResponseMessage lastResponse;
+            var payload = new List<Filesystem>();
+
+            do
+            {
+                var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/?resource=account&timeout={this.Timeout}";
+
+                if (continuation != null)
+                    resourceUrl += "&continuation=" + Uri.EscapeDataString(continuation);
+
+                lastResponse = await this.HttpClient.GetAsync(resourceUrl);
+                continuation = null;
+
+                if (lastResponse.IsSuccessStatusCode)
+                {
+                    var filesystemList = JsonConvert.DeserializeObject<FilesystemList>(await lastResponse.Content.ReadAsStringAsync());
+                    payload.AddRange(filesystemList.Filesystems);
+
+                    if (lastResponse.Headers.TryGetValues("x-ms-continuation", out IEnumerable<string> continuations))
+                        continuation = continuations.First();
+                }
+                
+            } while (!string.IsNullOrEmpty(continuation));
+
+            return new PayloadOperationResult<List<Filesystem>>
+            {
+                IsSuccessStatusCode = lastResponse.IsSuccessStatusCode,
+                StatusMessage = lastResponse.ReasonPhrase,
+                Payload = lastResponse.IsSuccessStatusCode ? payload : null
+            };
+        }
+
         public async Task<OperationResult> CreateFilesystemAsync(string filesystem)
         {
             var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}?resource=filesystem&timeout={this.Timeout}";
@@ -60,6 +99,44 @@ namespace Microsoft.Azure.Management.Storage
             var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}?resource=filesystem&timeout={this.Timeout}";
             var response = await this.HttpClient.DeleteAsync(resourceUrl);
             return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
+        }
+
+        public async Task<PayloadOperationResult<List<Path>>> ListPathsAsync(string filesystem, string directory = null, bool recursive = false)
+        {
+            string continuation = null;
+            HttpResponseMessage lastResponse;
+            var payload = new List<Path>();
+
+            do
+            {
+                var resourceUrl = $"https://{StorageAccountName}.dfs.core.windows.net/{filesystem}?resource=filesystem&timeout={this.Timeout}&recursive={recursive}";
+
+                if (!string.IsNullOrEmpty(directory))
+                    resourceUrl += "&directory=" + Uri.EscapeDataString(directory);
+
+                if (continuation != null)
+                    resourceUrl += "&continuation=" + Uri.EscapeDataString(continuation);
+
+                lastResponse = await this.HttpClient.GetAsync(resourceUrl);
+                continuation = null;
+
+                if (lastResponse.IsSuccessStatusCode)
+                {
+                    var pathList = JsonConvert.DeserializeObject<PathList>(await lastResponse.Content.ReadAsStringAsync());
+                    payload.AddRange(pathList.Paths);
+
+                    if (lastResponse.Headers.TryGetValues("x-ms-continuation", out IEnumerable<string> continuations))
+                        continuation = continuations.First();
+                }
+
+            } while (!string.IsNullOrEmpty(continuation));
+
+            return new PayloadOperationResult<List<Path>>
+            {
+                IsSuccessStatusCode = lastResponse.IsSuccessStatusCode,
+                StatusMessage = lastResponse.ReasonPhrase,
+                Payload = lastResponse.IsSuccessStatusCode ? payload : null
+            };
         }
 
         public async Task<OperationResult> CreateDirectoryAsync(string filesystem, string path)
@@ -127,6 +204,5 @@ namespace Microsoft.Azure.Management.Storage
 
             return new OperationResult { IsSuccessStatusCode = response.IsSuccessStatusCode, StatusMessage = response.ReasonPhrase };
         }
-
     }
 }
