@@ -27,8 +27,8 @@ namespace ExampleConsoleApp
 
             var isDirectoryCreated = await client.CreateDirectoryAsync(filesystem, mypath);
 
-            string tmpFile = Path.GetTempFileName();
-            string fileName = HttpUtility.UrlEncode(Path.GetFileName(tmpFile));
+            string tmpFile = System.IO.Path.GetTempFileName();
+            string fileName = HttpUtility.UrlEncode(System.IO.Path.GetFileName(tmpFile));
             File.WriteAllText(tmpFile, $"this is sample file content for {tmpFile}");
 
             var isFileCreated = await client.CreateFileAsync(filesystem, mypath, fileName, new FileStream(tmpFile, FileMode.Open, FileAccess.Read));
